@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Proces: Změna představení — Jihočeské divadlo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #242836;
+      --border: #2e3348;
+      --text: #e2e4ed;
+      --text-dim: #8b90a5;
+      --accent: #6c7bf7;
+      --accent-dim: #4a56c9;
+      --warn: #f59e0b;
+      --warn-bg: #f59e0b18;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --pool-iniciator: #22c55e;
+      --pool-vedeni: #3b82f6;
+      --pool-produkcni: #f97316;
+      --pool-milena: #ec4899;
+      --pool-utp: #a855f7;
+      --pool-doprava: #06b6d4;
+      --msg-flow: #a78bfa;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    header .subtitle {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 2px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .controls button {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .controls button:hover { background: var(--border); }
+    .controls button.text-btn { width: auto; padding: 0 12px; font-size: 11px; font-weight: 500; }
+
+    .zoom-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+      width: 44px;
+      text-align: center;
+    }
+
+    .canvas-wrap {
+      flex: 1;
+      overflow: hidden;
+      cursor: grab;
+      position: relative;
+    }
+
+    .canvas-wrap:active { cursor: grabbing; }
+
+    svg { display: block; }
+
+    /* Tooltip */
+    .tooltip {
+      position: fixed;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--text);
+      max-width: 280px;
+      pointer-events: none;
+      z-index: 100;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      display: none;
+      line-height: 1.5;
+    }
+
+    .tooltip .tip-title {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .tooltip .tip-problem {
+      color: var(--warn);
+      font-size: 11px;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+
+    footer {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 8px 20px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      flex-shrink: 0;
+    }
+
+    /* Tab bar */
+    .tab-bar {
+      display: flex;
+      gap: 2px;
+      margin-left: 24px;
+    }
+
+    .tab-bar button {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .tab-bar button:hover { color: var(--text); background: var(--surface2); }
+    .tab-bar button.active { color: var(--accent); background: var(--accent)15; }
+
+    /* Problem panel */
+    .problem-panel {
+      position: absolute;
+      right: 16px;
+      top: 16px;
+      width: 300px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      z-index: 20;
+      max-height: calc(100% - 32px);
+      overflow-y: auto;
+      display: none;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    .problem-panel.visible { display: block; }
+
+    .problem-panel h3 {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .problem-item {
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      font-size: 11px;
+      line-height: 1.5;
+      background: var(--warn-bg);
+      border-left: 3px solid var(--warn);
+    }
+
+    .problem-item .p-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--warn);
+      font-weight: 600;
+    }
+
+    .close-panel {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Proces: Změna / zrušení představení</h1>
+    <div class="subtitle">Jihočeské divadlo · AS-IS · digitální audit 2025/2026</div>
+  </div>
+  <div class="tab-bar">
+    <button class="active" id="tab-diagram">Diagram</button>
+    <button id="tab-problems">⚠ Problémy (8)</button>
+  </div>
+  <div class="controls">
+    <button onclick="zoomIn()">+</button>
+    <span class="zoom-label" id="zoomLabel">72%</span>
+    <button onclick="zoomOut()">−</button>
+    <button class="text-btn" onclick="resetView()">Reset</button>
+  </div>
+</header>
+
+<div class="canvas-wrap" id="canvasWrap">
+  <svg id="diagram" width="100%" height="100%"></svg>
+
+  <div class="problem-panel" id="problemPanel">
+    <button class="close-panel" onclick="toggleProblems()">✕</button>
+    <h3>⚠️ Identifikované problémy</h3>
+    <div class="problem-item"><span class="p-id">P1</span> Nestrukturovaný vstup změny — telefon, mail, WA, osobně. Riziko ztráty informace.</div>
+    <div class="problem-item"><span class="p-id">P2</span> Single point of failure — zápis do Fermana může pouze Milena. Při nepřítomnosti se proces zastaví.</div>
+    <div class="problem-item"><span class="p-id">P3</span> Ruční přepis do 5+ nepropojených systémů — 5–10 h/týden, riziko nekonzistence dat.</div>
+    <div class="problem-item"><span class="p-id">P4</span> Chybí formalizovaná kategorizace závažnosti změn — všechny změny se řeší stejně chaoticky.</div>
+    <div class="problem-item"><span class="p-id">P5</span> Ferman nemá notifikace — zaměstnanci musí sami aktivně kontrolovat.</div>
+    <div class="problem-item"><span class="p-id">P6</span> Chybí potvrzení přijetí informace — nikdo neví, kdo už o změně ví.</div>
+    <div class="problem-item"><span class="p-id">P7</span> UTP se dozvídá plán pouze na týden dopředu (ve čtvrtek pro příští týden).</div>
+    <div class="problem-item"><span class="p-id">P8</span> Opakované zkoušky se zadávají ručně — chybí funkce opakovaných událostí.</div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<footer>
+  <span>Scroll = zoom · Drag = posun · Hover = detail · ⚠️ = problémové místo</span>
+  <span>Mgr. Kateřina Švidrnochová · katerina@svidrnochova.cz</span>
+</footer>
+
+<script>
+// ─── DATA ──────────────────────────────────────────────
+const POOLS = [
+  { id:"iniciator", label:"Iniciátor změny", sub:"(režisér, šéf souboru, produkční)", color:"#22c55e", y:0, h:120 },
+  { id:"vedeni", label:"Vedení / Porada vedení", sub:"", color:"#3b82f6", y:135, h:150 },
+  { id:"produkcni", label:"Produkční souborů", sub:"(Činohra, Opera, Balet, Malé divadlo)", color:"#f97316", y:300, h:185 },
+  { id:"milena", label:"Milena Chumlenová", sub:"(tajemnice, správce Fermana)", color:"#ec4899", y:500, h:230 },
+  { id:"utp", label:"UTP / Techničtí pracovníci", sub:"(Bajzeková, mistři, technici)", color:"#a855f7", y:745, h:155 },
+  { id:"doprava", label:"Doprava", sub:"(Bajzeková)", color:"#06b6d4", y:915, h:120 },
+];
+
+const NODES = [
+  // Iniciátor
+  {id:"s1",type:"start",x:190,y:55,pool:"iniciator",label:"Potřeba změny"},
+  {id:"t1",type:"task",x:280,y:28,pool:"iniciator",label:"Nahlásit potřebu změny",sub:"⚠️ telefon / mail / WA / osobně",w:210,h:65,warn:true,
+   tip:"Iniciátor komunikuje potřebu změny nestrukturovaně — neexistuje standardizovaný formulář ani definovaný kanál.",problem:"P1: Nestrukturovaný vstup — riziko ztráty informace"},
+  {id:"e1",type:"end",x:555,y:55,pool:"iniciator"},
+
+  // Vedení
+  {id:"t2",type:"task",x:280,y:170,pool:"vedeni",label:"Posoudit závažnost",sub:"⚠️ Neformalizovaný proces",w:185,h:55,warn:true,
+   tip:"Neexistuje formalizovaná kategorizace. De facto se rozlišuje kritická/důležitá/běžná změna, ale bez jasných pravidel.",problem:"P4: Chybí formalizovaná kategorizace"},
+  {id:"gw1",type:"gw",x:530,y:190,pool:"vedeni",label:"Schválit?"},
+  {id:"t3",type:"task",x:620,y:150,pool:"vedeni",label:"Schválit změnu",sub:"Porada 1×/14 dní nebo ad hoc",w:200,h:55,
+   tip:"Kritické změny se projednávají na poradě vedení (1× za 14 dní) nebo operativně rozhoduje ředitelka."},
+  {id:"t4",type:"task",x:620,y:225,pool:"vedeni",label:"Zamítnout",w:120,h:40},
+  {id:"e2",type:"end",x:880,y:170,pool:"vedeni"},
+  {id:"e3",type:"end",x:790,y:238,pool:"vedeni"},
+
+  // Produkční
+  {id:"t5",type:"task",x:190,y:340,pool:"produkcni",label:"Přijmout info o změně",w:165,h:50,
+   tip:"Informace o potřebě změny přichází od iniciátora — nejdříve k produkčnímu daného souboru."},
+  {id:"gw2",type:"gw",x:415,y:358,pool:"produkcni",label:"Závažnost?"},
+  {id:"t6",type:"task",x:510,y:315,pool:"produkcni",label:"Eskalovat na vedení",sub:"(kritická změna)",w:175,h:50,
+   tip:"Zrušení/přesunutí představení → dopad na diváky, prodej, UTP, dopravu, všechny soubory."},
+  {id:"t7",type:"task",x:510,y:395,pool:"produkcni",label:"Rozhodnout samostatně",sub:"(důležitá/běžná)",w:175,h:50,
+   tip:"Změna zkoušky, obsazení, prostoru → rozhoduje produkční souboru ve spolupráci s Milenou."},
+  {id:"t8",type:"task",x:745,y:340,pool:"produkcni",label:"Informovat Milenu",sub:"⚠️ Nejednotný kanál",w:175,h:55,warn:true,
+   tip:"Komunikace s Milenou probíhá nejednotně — mail, telefon, osobně, WA. U Opery: produkční informuje Milenu. U Malého divadla: Věra upraví Google tabulku a informuje Milenu.",problem:"P1: Nestrukturovaný kanál komunikace"},
+  {id:"t9",type:"task",x:980,y:340,pool:"produkcni",label:"Aktualizovat tabulky souboru",sub:"Google / Excel — záleží na souboru",w:195,h:55,
+   tip:"Opera: Google tabulky. Balet: Google na soukromém účtu. Malé divadlo: Google. Činohra: Excel."},
+  {id:"e4",type:"end",x:1230,y:360,pool:"produkcni"},
+
+  // Milena
+  {id:"t10",type:"task",x:190,y:530,pool:"milena",label:"Přijmout požadavek",sub:"⚠️ Z různých kanálů",w:175,h:55,warn:true,
+   tip:"Milena je centrální bod — „středobod, kde se to sbíhá". Přijímá informace z různých kanálů nejednotně.",problem:"P2: Single point of failure"},
+  {id:"gw3",type:"gw",x:425,y:550,pool:"milena",label:"Urgentní?"},
+  {id:"t11",type:"task",x:525,y:510,pool:"milena",label:"Urgentní informování",sub:"WA / telefon / obvolání",w:180,h:50,
+   tip:"Při urgentních změnách: nejdřív WhatsApp/telefon dotčeným osobám, pak se to doupraví ve Fermanu."},
+  {id:"t12",type:"task",x:525,y:590,pool:"milena",label:"Zapsat do .xlsx Fermana",sub:"⚠️ Pouze Milena má právo zápisu",w:200,h:55,warn:true,
+   tip:"Milena jako jediná osoba zapisuje do přípravné excelové tabulky Fermana. Nikdo jiný nemůže.",problem:"P2: Single point of failure — při nepřítomnosti se proces zastaví"},
+  {id:"t13",type:"task",x:775,y:590,pool:"milena",label:"Ruční přepis do\nwebového Fermana",sub:"⚠️ Žádné API",w:190,h:55,warn:true,
+   tip:"Ručně přepisuje z .xlsx do webové aplikace Ferman. Opakované zkoušky se musí zadávat ručně pokaždé znovu.",problem:"P3: Ruční přepis 5–10 h/týden + P8: Chybí opakované události"},
+  {id:"t14",type:"task",x:1010,y:530,pool:"milena",label:"Aktualizovat měsíční plán",sub:"Excel na OneDrive",w:170,h:55,
+   tip:"Ručně aktualizuje měsíční hrací plán. Tabulky nejsou propojené vzorci."},
+  {id:"t15",type:"task",x:1010,y:615,pool:"milena",label:"Aktualizovat tabulku dopravy",sub:"Čtvrtek = Fermanka",w:175,h:55,
+   tip:"Dopravní tabulka se aktualizuje každý čtvrtek na „Fermance". Po Fermance ještě přicházejí další telefonáty."},
+  {id:"t16",type:"task",x:1230,y:570,pool:"milena",label:"Aktualizovat fyzickou nástěnku",sub:"Tisk Fermana → UTP",w:170,h:55,
+   tip:"Milena zodpovídá za fyzickou nástěnku v UTP — tiskne aktuální Ferman. V ten moment už může být zastaralý."},
+  {id:"e5",type:"end",x:1450,y:590,pool:"milena",label:"⚠️ Žádné\npotvrzení"},
+
+  // UTP
+  {id:"t17",type:"task",x:260,y:780,pool:"utp",label:"Přijmout urgentní info",sub:"WA / telefon",w:175,h:50,
+   tip:"Technici mají WhatsApp skupiny pro rychlou informovanost, ale Jarmila nemá přístup do všech WA skupin."},
+  {id:"gw4",type:"gw",x:505,y:798,pool:"utp",label:"Zdroj?"},
+  {id:"t18",type:"task",x:605,y:760,pool:"utp",label:"Zkontrolovat Ferman",sub:"⚠️ Žádné notifikace",w:180,h:50,warn:true,
+   tip:"Ferman nemá notifikace — zaměstnanci musí sami aktivně kontrolovat webovou stránku.",problem:"P5: Chybí notifikace — zaměstnanci neví o změnách"},
+  {id:"t19",type:"task",x:605,y:835,pool:"utp",label:"Přečíst nástěnku",sub:"⚠️ Může být zastaralá",w:180,h:50,warn:true,
+   tip:"Technici nemají počítače ani smartphony (někteří jen tlačítkové telefony). Závisí na papírové nástěnce.",problem:"P7: Krátký plánovací horizont — 1 týden dopředu"},
+  {id:"t20",type:"task",x:860,y:785,pool:"utp",label:"Upravit pracovní plán",w:175,h:50,
+   tip:"UTP upraví plán podle změny. Neexistuje potvrzení, že informaci přijali.",problem:"P6: Chybí potvrzení přijetí"},
+  {id:"e6",type:"end",x:1100,y:803,pool:"utp"},
+
+  // Doprava
+  {id:"t21",type:"task",x:260,y:945,pool:"doprava",label:"Přijmout info o změně",sub:"Urgentní / Fermanka",w:190,h:50,
+   tip:"Jarmila se dozvídá o změnách na Fermance (čtvrtek) nebo urgentně telefonicky/WA."},
+  {id:"t22",type:"task",x:520,y:945,pool:"doprava",label:"Upravit rozvrh dopravy",sub:"⚠️ Ruční úprava v Excelu",w:195,h:50,warn:true,
+   tip:"Dopravní tabulka se upravuje ručně. Chybí buffery mezi cestami řidičů, nejsou zadané pauzy dle zákoníku práce.",problem:"P3: Ruční úprava bez automatizace"},
+  {id:"t23",type:"task",x:785,y:945,pool:"doprava",label:"Informovat řidiče",sub:"Telefonicky / osobně",w:175,h:50,
+   tip:"Řidiči nemají digitální přístup. Informace se předává telefonicky nebo osobně."},
+  {id:"e7",type:"end",x:1025,y:963,pool:"doprava"},
+];
+
+const EDGES = [
+  {f:"s1",t:"t1"},{f:"t1",t:"e1"},
+  {f:"t2",t:"gw1"},{f:"gw1",t:"t3",label:"Ano"},{f:"gw1",t:"t4",label:"Ne"},{f:"t3",t:"e2"},{f:"t4",t:"e3"},
+  {f:"t5",t:"gw2"},{f:"gw2",t:"t6",label:"Kritická"},{f:"gw2",t:"t7",label:"Běžná"},{f:"t6",t:"t8"},{f:"t7",t:"t8"},{f:"t8",t:"t9"},{f:"t9",t:"e4"},
+  {f:"t10",t:"gw3"},{f:"gw3",t:"t11",label:"Ano"},{f:"gw3",t:"t12",label:"Ne"},{f:"t11",t:"t12"},{f:"t12",t:"t13"},{f:"t13",t:"t14"},{f:"t13",t:"t15"},{f:"t14",t:"t16"},{f:"t15",t:"t16"},{f:"t16",t:"e5"},
+  {f:"t17",t:"gw4"},{f:"gw4",t:"t18",label:"Online"},{f:"gw4",t:"t19",label:"Offline"},{f:"t18",t:"t20"},{f:"t19",t:"t20"},{f:"t20",t:"e6"},
+  {f:"t21",t:"t22"},{f:"t22",t:"t23"},{f:"t23",t:"e7"},
+];
+
+const MSG_FLOWS = [
+  {f:"t1",t:"t5",label:"Nahlášení"},
+  {f:"t6",t:"t2",label:"Eskalace"},
+  {f:"t3",t:"t8",label:"Rozhodnutí"},
+  {f:"t8",t:"t10",label:"Info Mileně"},
+  {f:"t11",t:"t17",label:"Urgentní info"},
+  {f:"t11",t:"t21",label:"Urgentní info"},
+  {f:"t15",t:"t22",label:"Aktualizace"},
+];
+
+// ─── RENDER ENGINE ─────────────────────────────────────
+const SVG_NS = "http://www.w3.org/2000/svg";
+let zoom = 0.72, panX = 0, panY = 0;
+let isDragging = false, dragStartX = 0, dragStartY = 0;
+const nodeMap = {};
+NODES.forEach(n => nodeMap[n.id] = n);
+
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(SVG_NS, tag);
+  if (attrs) Object.entries(attrs).forEach(([k,v]) => e.setAttribute(k, v));
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+function center(n) {
+  if (n.type === "start" || n.type === "end") return {x:n.x, y:n.y};
+  if (n.type === "gw") return {x:n.x, y:n.y};
+  return {x: n.x + (n.w||160)/2, y: n.y + (n.h||50)/2};
+}
+
+function port(n, side) {
+  const c = center(n);
+  const r = (n.type==="start"||n.type==="end") ? 14 : (n.type==="gw" ? 20 : 0);
+  if (n.type==="start"||n.type==="end"||n.type==="gw") {
+    if (side==="right") return {x:c.x+r,y:c.y};
+    if (side==="left") return {x:c.x-r,y:c.y};
+    if (side==="bottom") return {x:c.x,y:c.y+r};
+    if (side==="top") return {x:c.x,y:c.y-r};
+  }
+  const w=n.w||160, h=n.h||50;
+  if (side==="right") return {x:n.x+w,y:n.y+h/2};
+  if (side==="left") return {x:n.x,y:n.y+h/2};
+  if (side==="bottom") return {x:n.x+w/2,y:n.y+h};
+  if (side==="top") return {x:n.x+w/2,y:n.y};
+  return c;
+}
+
+function bestSides(a, b) {
+  const ac = center(a), bc = center(b);
+  const dx = bc.x - ac.x, dy = bc.y - ac.y;
+  if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? ["right","left"] : ["left","right"];
+  return dy > 0 ? ["bottom","top"] : ["top","bottom"];
+}
+
+function drawArrow(svg, x1, y1, x2, y2, opts = {}) {
+  const {dashed, color = "#4b5563", label, opacity = 1} = opts;
+  const g = el("g", {}, svg);
+  const angle = Math.atan2(y2-y1, x2-x1);
+  const hl = 7;
+  const ax = x2 - hl*Math.cos(angle-Math.PI/6);
+  const ay = y2 - hl*Math.sin(angle-Math.PI/6);
+  const bx = x2 - hl*Math.cos(angle+Math.PI/6);
+  const by = y2 - hl*Math.sin(angle+Math.PI/6);
+
+  el("line", {x1,y1,x2,y2, stroke:color, "stroke-width": dashed?"1":"1.5", "stroke-dasharray": dashed?"5,3":"none", opacity}, g);
+  el("polygon", {points:`${x2},${y2} ${ax},${ay} ${bx},${by}`, fill:color, opacity}, g);
+
+  if (label) {
+    const mx = (x1+x2)/2, my = (y1+y2)/2;
+    const t = el("text", {x:mx, y:my-5, "text-anchor":"middle", "font-size":"9", fill:color, "font-family":"'DM Sans',sans-serif", "font-weight":"500", opacity}, g);
+    t.textContent = label;
+  }
+}
+
+function drawStart(svg, n) {
+  const g = el("g", {"data-id":n.id}, svg);
+  el("circle", {cx:n.x,cy:n.y,r:14, fill:"none", stroke:POOLS.find(p=>p.id===n.pool).color, "stroke-width":"2.5"}, g);
+  el("circle", {cx:n.x,cy:n.y,r:5, fill:POOLS.find(p=>p.id===n.pool).color}, g);
+  if (n.label) {
+    const t = el("text", {x:n.x,y:n.y+26,"text-anchor":"middle","font-size":"8",fill:"#6b7280","font-family":"'DM Sans',sans-serif"}, g);
+    t.textContent = n.label;
+  }
+}
+
+function drawEnd(svg, n) {
+  const g = el("g", {"data-id":n.id}, svg);
+  el("circle", {cx:n.x,cy:n.y,r:14, fill:"none", stroke:"#ef4444", "stroke-width":"3"}, g);
+  el("circle", {cx:n.x,cy:n.y,r:6, fill:"#ef4444"}, g);
+  if (n.label) {
+    n.label.split("\n").forEach((line,i) => {
+      const t = el("text", {x:n.x,y:n.y+26+i*11,"text-anchor":"middle","font-size":"8",fill:"#6b7280","font-family":"'DM Sans',sans-serif"}, g);
+      t.textContent = line;
+    });
+  }
+}
+
+function drawGW(svg, n) {
+  const g = el("g", {"data-id":n.id}, svg);
+  const s = 20;
+  el("polygon", {points:`${n.x},${n.y-s} ${n.x+s},${n.y} ${n.x},${n.y+s} ${n.x-s},${n.y}`, fill:"#fef3c7", stroke:"#f59e0b", "stroke-width":"2"}, g);
+  const t1 = el("text", {x:n.x,y:n.y+5,"text-anchor":"middle","font-size":"12","font-weight":"bold",fill:"#92400e","font-family":"'DM Sans',sans-serif"}, g);
+  t1.textContent = "✕";
+  if (n.label) {
+    const t2 = el("text", {x:n.x,y:n.y-s-6,"text-anchor":"middle","font-size":"8",fill:"#6b7280","font-family":"'DM Sans',sans-serif"}, g);
+    t2.textContent = n.label;
+  }
+}
+
+function drawTask(svg, n) {
+  const g = el("g", {"data-id":n.id, class:"node-task", style:"cursor:pointer"}, svg);
+  const w = n.w||160, h = n.h||50;
+
+  // Shadow
+  el("rect", {x:n.x+2,y:n.y+2,width:w,height:h,rx:8,fill:"#000",opacity:"0.15"}, g);
+
+  // Main rect
+  el("rect", {x:n.x,y:n.y,width:w,height:h,rx:8,
+    fill: n.warn ? "#1c1a14" : "#1a1d27",
+    stroke: n.warn ? "#f59e0b" : "#3f4560",
+    "stroke-width": n.warn ? "2" : "1.5"
+  }, g);
+
+  // Warn indicator
+  if (n.warn) {
+    el("rect", {x:n.x,y:n.y,width:4,height:h,rx:"2",fill:"#f59e0b"}, g);
+  }
+
+  // Label
+  const lines = n.label.split("\n");
+  lines.forEach((line,i) => {
+    const t = el("text", {x:n.x+w/2, y:n.y+16+i*13, "text-anchor":"middle","font-size":"10.5","font-weight":"600",fill:"#e2e4ed","font-family":"'DM Sans',sans-serif"}, g);
+    t.textContent = line;
+  });
+
+  // Sublabel
+  if (n.sub) {
+    const t = el("text", {x:n.x+w/2, y:n.y+h-8, "text-anchor":"middle","font-size":"8.5",fill: n.warn?"#fbbf24":"#6b7280","font-family":"'JetBrains Mono',monospace"}, g);
+    t.textContent = n.sub;
+  }
+
+  // Tooltip interaction
+  g.addEventListener("mouseenter", (e) => showTooltip(e, n));
+  g.addEventListener("mouseleave", hideTooltip);
+  g.addEventListener("mousemove", moveTooltip);
+}
+
+function render() {
+  const svg = document.getElementById("diagram");
+  svg.innerHTML = "";
+
+  const vw = window.innerWidth, vh = window.innerHeight - 100;
+  svg.setAttribute("viewBox", `${-panX/zoom} ${-panY/zoom} ${vw/zoom} ${vh/zoom}`);
+
+  // Pools
+  POOLS.forEach(pool => {
+    const g = el("g", {}, svg);
+    // Pool background
+    el("rect", {x:140,y:pool.y,width:1380,height:pool.h,rx:6, fill:pool.color, opacity:"0.04", stroke:pool.color, "stroke-width":"1", "stroke-opacity":"0.2"}, g);
+    // Pool label area
+    el("rect", {x:0,y:pool.y,width:135,height:pool.h,rx:6, fill:pool.color, opacity:"0.12", stroke:pool.color, "stroke-width":"1.5", "stroke-opacity":"0.4"}, g);
+    const t1 = el("text", {x:67, y:pool.y+pool.h/2 - (pool.sub?6:0), "text-anchor":"middle","font-size":"11","font-weight":"700",fill:pool.color,"font-family":"'DM Sans',sans-serif"}, g);
+    t1.textContent = pool.label;
+    if (pool.sub) {
+      const t2 = el("text", {x:67, y:pool.y+pool.h/2+12, "text-anchor":"middle","font-size":"8.5",fill:pool.color,opacity:"0.7","font-family":"'DM Sans',sans-serif"}, g);
+      t2.textContent = pool.sub;
+    }
+  });
+
+  // Edges
+  EDGES.forEach(edge => {
+    const fn = nodeMap[edge.f], tn = nodeMap[edge.t];
+    if (!fn || !tn) return;
+    const [fs, ts] = bestSides(fn, tn);
+    const p1 = port(fn, fs), p2 = port(tn, ts);
+    drawArrow(svg, p1.x, p1.y, p2.x, p2.y, {label:edge.label, color:"#4b5563"});
+  });
+
+  // Message flows
+  MSG_FLOWS.forEach(mf => {
+    const fn = nodeMap[mf.f], tn = nodeMap[mf.t];
+    if (!fn || !tn) return;
+    const [fs, ts] = bestSides(fn, tn);
+    const p1 = port(fn, fs), p2 = port(tn, ts);
+    drawArrow(svg, p1.x, p1.y, p2.x, p2.y, {dashed:true, color:"#a78bfa", label:mf.label, opacity:0.7});
+  });
+
+  // Nodes
+  NODES.forEach(n => {
+    if (n.type==="start") drawStart(svg, n);
+    else if (n.type==="end") drawEnd(svg, n);
+    else if (n.type==="gw") drawGW(svg, n);
+    else drawTask(svg, n);
+  });
+}
+
+// ─── TOOLTIP ───────────────────────────────────────────
+const tooltip = document.getElementById("tooltip");
+
+function showTooltip(e, node) {
+  if (!node.tip) return;
+  let html = `<div class="tip-title">${node.label.replace(/\n/g,' ')}</div>${node.tip}`;
+  if (node.problem) html += `<div class="tip-problem">⚠️ ${node.problem}</div>`;
+  tooltip.innerHTML = html;
+  tooltip.style.display = "block";
+  moveTooltip(e);
+}
+
+function moveTooltip(e) {
+  tooltip.style.left = (e.clientX + 14) + "px";
+  tooltip.style.top = (e.clientY + 14) + "px";
+}
+
+function hideTooltip() { tooltip.style.display = "none"; }
+
+// ─── ZOOM & PAN ────────────────────────────────────────
+function updateZoomLabel() { document.getElementById("zoomLabel").textContent = Math.round(zoom*100)+"%"; }
+function zoomIn() { zoom = Math.min(2, zoom+0.1); updateZoomLabel(); render(); }
+function zoomOut() { zoom = Math.max(0.2, zoom-0.1); updateZoomLabel(); render(); }
+function resetView() { zoom=0.72; panX=0; panY=0; updateZoomLabel(); render(); }
+
+const wrap = document.getElementById("canvasWrap");
+wrap.addEventListener("wheel", e => {
+  e.preventDefault();
+  zoom = Math.min(2, Math.max(0.2, zoom + (e.deltaY>0?-0.05:0.05)));
+  updateZoomLabel();
+  render();
+}, {passive:false});
+
+wrap.addEventListener("mousedown", e => {
+  if (e.button===0) { isDragging=true; dragStartX=e.clientX-panX; dragStartY=e.clientY-panY; }
+});
+wrap.addEventListener("mousemove", e => {
+  if (isDragging) { panX=e.clientX-dragStartX; panY=e.clientY-dragStartY; render(); }
+});
+wrap.addEventListener("mouseup", () => isDragging=false);
+wrap.addEventListener("mouseleave", () => isDragging=false);
+
+// ─── TABS ──────────────────────────────────────────────
+document.getElementById("tab-problems").addEventListener("click", toggleProblems);
+document.getElementById("tab-diagram").addEventListener("click", () => {
+  document.getElementById("problemPanel").classList.remove("visible");
+  document.getElementById("tab-problems").classList.remove("active");
+  document.getElementById("tab-diagram").classList.add("active");
+});
+
+function toggleProblems() {
+  const panel = document.getElementById("problemPanel");
+  const isVisible = panel.classList.toggle("visible");
+  document.getElementById("tab-problems").classList.toggle("active", isVisible);
+  document.getElementById("tab-diagram").classList.toggle("active", !isVisible);
+}
+
+// ─── INIT ──────────────────────────────────────────────
+window.addEventListener("resize", render);
+render();
+</script>
+</body>
+</html>
