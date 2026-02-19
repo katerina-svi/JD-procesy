@@ -1,0 +1,593 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+             id="Definitions_1"
+             targetNamespace="http://bpmn.io/schema/bpmn"
+             exporter="Claude AI - Digital Audit JD"
+             exporterVersion="1.0">
+
+  <collaboration id="Collaboration_1">
+    <participant id="Participant_Iniciator" name="Iniciátor změny&#10;(režisér, šéf souboru, produkční)" processRef="Process_Iniciator" />
+    <participant id="Participant_Vedeni" name="Vedení / Porada vedení" processRef="Process_Vedeni" />
+    <participant id="Participant_Milena" name="Milena Chumlenová&#10;(tajemnice divadla, správce Fermana)" processRef="Process_Milena" />
+    <participant id="Participant_Produkcni" name="Produkční souborů&#10;(Činohra, Opera, Balet, Malé divadlo)" processRef="Process_Produkcni" />
+    <participant id="Participant_UTP" name="UTP / Techničtí pracovníci&#10;(Bajzeková, mistři, technici)" processRef="Process_UTP" />
+    <participant id="Participant_Doprava" name="Doprava&#10;(Bajzeková)" processRef="Process_Doprava" />
+
+    <!-- Message flows between pools -->
+    <messageFlow id="MF_1" name="Neformální nahlášení změny&#10;(telefon/mail/WA/osobně)" sourceRef="Task_NahlasitZmenu" targetRef="Task_PrijmoutInfo_Produkcni" />
+    <messageFlow id="MF_2" name="Eskalace na vedení" sourceRef="Task_EskalovatVedeni" targetRef="Task_PosouditZmenu" />
+    <messageFlow id="MF_3" name="Rozhodnutí vedení" sourceRef="Task_SchvalitZmenu" targetRef="Task_PrijmoutRozhodnuti" />
+    <messageFlow id="MF_4" name="Předání info Mileně&#10;(mail/telefon/osobně/WA)" sourceRef="Task_InformovatMilenu" targetRef="Task_PrijmoutPozadavek" />
+    <messageFlow id="MF_5" name="Urgentní info&#10;(WA/telefon)" sourceRef="Task_UrgentniInfo" targetRef="Task_PrijmoutUrgent_UTP" />
+    <messageFlow id="MF_6" name="Urgentní info doprava" sourceRef="Task_UrgentniInfo" targetRef="Task_PrijmoutUrgent_Doprava" />
+    <messageFlow id="MF_7" name="Aktualizace tabulky dopravy" sourceRef="Task_AktualizovatDopravu" targetRef="Task_UpravitRozvrh" />
+  </collaboration>
+
+  <!-- ============================================ -->
+  <!-- POOL 1: Iniciátor změny                      -->
+  <!-- ============================================ -->
+  <process id="Process_Iniciator" isExecutable="false">
+    <startEvent id="Start_Zmena" name="Vznik potřeby změny&#10;(nemoc, kolize, tech. problém)">
+      <outgoing>Flow_1</outgoing>
+    </startEvent>
+    <task id="Task_NahlasitZmenu" name="Nahlásit potřebu změny&#10;⚠️ Nestrukturovaně:&#10;telefon / e-mail / WA / osobně">
+      <incoming>Flow_1</incoming>
+      <outgoing>Flow_2</outgoing>
+    </task>
+    <endEvent id="End_Iniciator" name="Čeká na výsledek">
+      <incoming>Flow_2</incoming>
+    </endEvent>
+    <sequenceFlow id="Flow_1" sourceRef="Start_Zmena" targetRef="Task_NahlasitZmenu" />
+    <sequenceFlow id="Flow_2" sourceRef="Task_NahlasitZmenu" targetRef="End_Iniciator" />
+  </process>
+
+  <!-- ============================================ -->
+  <!-- POOL 2: Vedení / Porada vedení               -->
+  <!-- ============================================ -->
+  <process id="Process_Vedeni" isExecutable="false">
+    <task id="Task_PosouditZmenu" name="Posoudit závažnost změny&#10;⚠️ Neformalizovaný proces">
+      <outgoing>Flow_V1</outgoing>
+    </task>
+    <exclusiveGateway id="GW_Schvaleni" name="Schválit?">
+      <incoming>Flow_V1</incoming>
+      <outgoing>Flow_V2</outgoing>
+      <outgoing>Flow_V3</outgoing>
+    </exclusiveGateway>
+    <task id="Task_SchvalitZmenu" name="Schválit změnu&#10;(porada 1× za 14 dní&#10;nebo ad hoc ředitelka)">
+      <incoming>Flow_V2</incoming>
+      <outgoing>Flow_V4</outgoing>
+    </task>
+    <task id="Task_ZamitnutZmenu" name="Zamítnout změnu">
+      <incoming>Flow_V3</incoming>
+      <outgoing>Flow_V5</outgoing>
+    </task>
+    <endEvent id="End_Vedeni_Schvaleno" name="Schváleno">
+      <incoming>Flow_V4</incoming>
+    </endEvent>
+    <endEvent id="End_Vedeni_Zamitnuto" name="Zamítnuto">
+      <incoming>Flow_V5</incoming>
+    </endEvent>
+    <sequenceFlow id="Flow_V1" sourceRef="Task_PosouditZmenu" targetRef="GW_Schvaleni" />
+    <sequenceFlow id="Flow_V2" name="Ano" sourceRef="GW_Schvaleni" targetRef="Task_SchvalitZmenu" />
+    <sequenceFlow id="Flow_V3" name="Ne" sourceRef="GW_Schvaleni" targetRef="Task_ZamitnutZmenu" />
+    <sequenceFlow id="Flow_V4" sourceRef="Task_SchvalitZmenu" targetRef="End_Vedeni_Schvaleno" />
+    <sequenceFlow id="Flow_V5" sourceRef="Task_ZamitnutZmenu" targetRef="End_Vedeni_Zamitnuto" />
+  </process>
+
+  <!-- ============================================ -->
+  <!-- POOL 3: Produkční souborů                    -->
+  <!-- ============================================ -->
+  <process id="Process_Produkcni" isExecutable="false">
+    <startEvent id="Start_Produkcni" name="Přijetí info o změně">
+      <outgoing>Flow_P1</outgoing>
+    </startEvent>
+    <task id="Task_PrijmoutInfo_Produkcni" name="Přijmout informaci&#10;o potřebě změny">
+      <incoming>Flow_P1</incoming>
+      <outgoing>Flow_P2</outgoing>
+    </task>
+    <exclusiveGateway id="GW_Zavaznost" name="Závažnost?">
+      <incoming>Flow_P2</incoming>
+      <outgoing>Flow_P3</outgoing>
+      <outgoing>Flow_P4</outgoing>
+    </exclusiveGateway>
+    <task id="Task_EskalovatVedeni" name="Eskalovat na vedení&#10;(kritická změna)">
+      <incoming>Flow_P3</incoming>
+      <outgoing>Flow_P5</outgoing>
+    </task>
+    <task id="Task_PrijmoutRozhodnuti" name="Přijmout rozhodnutí vedení">
+      <incoming>Flow_P5</incoming>
+      <outgoing>Flow_P6</outgoing>
+    </task>
+    <task id="Task_RozhodnoutSam" name="Rozhodnout samostatně&#10;(důležitá/běžná změna)">
+      <incoming>Flow_P4</incoming>
+      <outgoing>Flow_P7</outgoing>
+    </task>
+    <task id="Task_InformovatMilenu" name="Informovat Milenu&#10;⚠️ Nejednotný kanál:&#10;mail / telefon / osobně / WA">
+      <incoming>Flow_P6</incoming>
+      <incoming>Flow_P7</incoming>
+      <outgoing>Flow_P8</outgoing>
+    </task>
+    <task id="Task_AktualizovatSoubor" name="Aktualizovat tabulky souboru&#10;(Opera: Google, Balet: Google,&#10;Malé div.: Google, Činohra: Excel)">
+      <incoming>Flow_P8</incoming>
+      <outgoing>Flow_P9</outgoing>
+    </task>
+    <endEvent id="End_Produkcni" name="Hotovo na straně souboru">
+      <incoming>Flow_P9</incoming>
+    </endEvent>
+    <sequenceFlow id="Flow_P1" sourceRef="Start_Produkcni" targetRef="Task_PrijmoutInfo_Produkcni" />
+    <sequenceFlow id="Flow_P2" sourceRef="Task_PrijmoutInfo_Produkcni" targetRef="GW_Zavaznost" />
+    <sequenceFlow id="Flow_P3" name="Kritická&#10;(zrušení/přesun představení)" sourceRef="GW_Zavaznost" targetRef="Task_EskalovatVedeni" />
+    <sequenceFlow id="Flow_P4" name="Důležitá/Běžná&#10;(změna zkoušky, obsazení)" sourceRef="GW_Zavaznost" targetRef="Task_RozhodnoutSam" />
+    <sequenceFlow id="Flow_P5" sourceRef="Task_EskalovatVedeni" targetRef="Task_PrijmoutRozhodnuti" />
+    <sequenceFlow id="Flow_P6" sourceRef="Task_PrijmoutRozhodnuti" targetRef="Task_InformovatMilenu" />
+    <sequenceFlow id="Flow_P7" sourceRef="Task_RozhodnoutSam" targetRef="Task_InformovatMilenu" />
+    <sequenceFlow id="Flow_P8" sourceRef="Task_InformovatMilenu" targetRef="Task_AktualizovatSoubor" />
+    <sequenceFlow id="Flow_P9" sourceRef="Task_AktualizovatSoubor" targetRef="End_Produkcni" />
+  </process>
+
+  <!-- ============================================ -->
+  <!-- POOL 4: Milena Chumlenová (Ferman)           -->
+  <!-- ============================================ -->
+  <process id="Process_Milena" isExecutable="false">
+    <startEvent id="Start_Milena" name="Přijetí požadavku na změnu">
+      <outgoing>Flow_M1</outgoing>
+    </startEvent>
+    <task id="Task_PrijmoutPozadavek" name="Přijmout požadavek na změnu&#10;⚠️ Z různých kanálů nejednotně">
+      <incoming>Flow_M1</incoming>
+      <outgoing>Flow_M2</outgoing>
+    </task>
+    <exclusiveGateway id="GW_Urgence" name="Urgentní?">
+      <incoming>Flow_M2</incoming>
+      <outgoing>Flow_M3</outgoing>
+      <outgoing>Flow_M4</outgoing>
+    </exclusiveGateway>
+    <task id="Task_UrgentniInfo" name="Urgentní informování&#10;dotčených osob&#10;(WA / telefon / obvolání)">
+      <incoming>Flow_M3</incoming>
+      <outgoing>Flow_M5</outgoing>
+    </task>
+    <task id="Task_ZapisXlsx" name="Zapsat změnu do&#10;přípravné .xlsx tabulky Fermana&#10;⚠️ Pouze Milena má právo zápisu">
+      <incoming>Flow_M4</incoming>
+      <incoming>Flow_M5</incoming>
+      <outgoing>Flow_M6</outgoing>
+    </task>
+    <task id="Task_PrepisFerman" name="Ručně přepsat z .xlsx&#10;do webového Fermana&#10;⚠️ Ruční přepis, žádné API">
+      <incoming>Flow_M6</incoming>
+      <outgoing>Flow_M7</outgoing>
+    </task>
+    <task id="Task_AktualizovatMesicniPlan" name="Ručně aktualizovat&#10;měsíční hrací plán&#10;(Excel na OneDrive)">
+      <incoming>Flow_M7</incoming>
+      <outgoing>Flow_M8</outgoing>
+    </task>
+    <task id="Task_AktualizovatDopravu" name="Ručně aktualizovat&#10;tabulku dopravy&#10;(každý čtvrtek - Fermanka)">
+      <incoming>Flow_M8</incoming>
+      <outgoing>Flow_M9</outgoing>
+    </task>
+    <task id="Task_AktualizovatNastenku" name="Aktualizovat fyzickou&#10;nástěnku v UTP&#10;(tisk Fermana)">
+      <incoming>Flow_M9</incoming>
+      <outgoing>Flow_M10</outgoing>
+    </task>
+    <endEvent id="End_Milena" name="Změna zpracována&#10;⚠️ Žádné potvrzení doručení">
+      <incoming>Flow_M10</incoming>
+    </endEvent>
+    <sequenceFlow id="Flow_M1" sourceRef="Start_Milena" targetRef="Task_PrijmoutPozadavek" />
+    <sequenceFlow id="Flow_M2" sourceRef="Task_PrijmoutPozadavek" targetRef="GW_Urgence" />
+    <sequenceFlow id="Flow_M3" name="Ano - kritická/důležitá" sourceRef="GW_Urgence" targetRef="Task_UrgentniInfo" />
+    <sequenceFlow id="Flow_M4" name="Ne - běžná" sourceRef="GW_Urgence" targetRef="Task_ZapisXlsx" />
+    <sequenceFlow id="Flow_M5" sourceRef="Task_UrgentniInfo" targetRef="Task_ZapisXlsx" />
+    <sequenceFlow id="Flow_M6" sourceRef="Task_ZapisXlsx" targetRef="Task_PrepisFerman" />
+    <sequenceFlow id="Flow_M7" sourceRef="Task_PrepisFerman" targetRef="Task_AktualizovatMesicniPlan" />
+    <sequenceFlow id="Flow_M8" sourceRef="Task_AktualizovatMesicniPlan" targetRef="Task_AktualizovatDopravu" />
+    <sequenceFlow id="Flow_M9" sourceRef="Task_AktualizovatDopravu" targetRef="Task_AktualizovatNastenku" />
+    <sequenceFlow id="Flow_M10" sourceRef="Task_AktualizovatNastenku" targetRef="End_Milena" />
+  </process>
+
+  <!-- ============================================ -->
+  <!-- POOL 5: UTP / Techničtí pracovníci           -->
+  <!-- ============================================ -->
+  <process id="Process_UTP" isExecutable="false">
+    <startEvent id="Start_UTP" name="Příjem informace o změně">
+      <outgoing>Flow_U1</outgoing>
+    </startEvent>
+    <task id="Task_PrijmoutUrgent_UTP" name="Přijmout urgentní info&#10;(WA / telefon)">
+      <incoming>Flow_U1</incoming>
+      <outgoing>Flow_U2</outgoing>
+    </task>
+    <exclusiveGateway id="GW_InfoZdroj" name="Zdroj info?">
+      <incoming>Flow_U2</incoming>
+      <outgoing>Flow_U3</outgoing>
+      <outgoing>Flow_U4</outgoing>
+    </exclusiveGateway>
+    <task id="Task_KontrolovatFerman" name="Zkontrolovat webový Ferman&#10;⚠️ Žádné notifikace -&#10;musí sami aktivně kontrolovat">
+      <incoming>Flow_U3</incoming>
+      <outgoing>Flow_U5</outgoing>
+    </task>
+    <task id="Task_PrecistNastenku" name="Přečíst fyzickou nástěnku&#10;⚠️ Může být zastaralá">
+      <incoming>Flow_U4</incoming>
+      <outgoing>Flow_U6</outgoing>
+    </task>
+    <task id="Task_UpravitPraci" name="Upravit pracovní plán&#10;podle změny">
+      <incoming>Flow_U5</incoming>
+      <incoming>Flow_U6</incoming>
+      <outgoing>Flow_U7</outgoing>
+    </task>
+    <endEvent id="End_UTP" name="Práce upravena&#10;⚠️ Žádné potvrzení zpět">
+      <incoming>Flow_U7</incoming>
+    </endEvent>
+    <sequenceFlow id="Flow_U1" sourceRef="Start_UTP" targetRef="Task_PrijmoutUrgent_UTP" />
+    <sequenceFlow id="Flow_U2" sourceRef="Task_PrijmoutUrgent_UTP" targetRef="GW_InfoZdroj" />
+    <sequenceFlow id="Flow_U3" name="Přes Ferman (online)" sourceRef="GW_InfoZdroj" targetRef="Task_KontrolovatFerman" />
+    <sequenceFlow id="Flow_U4" name="Přes nástěnku (offline)&#10;⚠️ Technici nemají PC/smartphone" sourceRef="GW_InfoZdroj" targetRef="Task_PrecistNastenku" />
+    <sequenceFlow id="Flow_U5" sourceRef="Task_KontrolovatFerman" targetRef="Task_UpravitPraci" />
+    <sequenceFlow id="Flow_U6" sourceRef="Task_PrecistNastenku" targetRef="Task_UpravitPraci" />
+    <sequenceFlow id="Flow_U7" sourceRef="Task_UpravitPraci" targetRef="End_UTP" />
+  </process>
+
+  <!-- ============================================ -->
+  <!-- POOL 6: Doprava                              -->
+  <!-- ============================================ -->
+  <process id="Process_Doprava" isExecutable="false">
+    <startEvent id="Start_Doprava" name="Přijetí info o změně">
+      <outgoing>Flow_D1</outgoing>
+    </startEvent>
+    <task id="Task_PrijmoutUrgent_Doprava" name="Přijmout info o změně&#10;(urgentní: WA/telefon&#10;nebo čtvrteční Fermanka)">
+      <incoming>Flow_D1</incoming>
+      <outgoing>Flow_D2</outgoing>
+    </task>
+    <task id="Task_UpravitRozvrh" name="Upravit rozvrh dopravy&#10;v excelové tabulce&#10;⚠️ Ruční úprava">
+      <incoming>Flow_D2</incoming>
+      <outgoing>Flow_D3</outgoing>
+    </task>
+    <task id="Task_InformovatRidice" name="Informovat řidiče&#10;⚠️ Telefonicky / osobně">
+      <incoming>Flow_D3</incoming>
+      <outgoing>Flow_D4</outgoing>
+    </task>
+    <endEvent id="End_Doprava" name="Doprava přeplánována">
+      <incoming>Flow_D4</incoming>
+    </endEvent>
+    <sequenceFlow id="Flow_D1" sourceRef="Start_Doprava" targetRef="Task_PrijmoutUrgent_Doprava" />
+    <sequenceFlow id="Flow_D2" sourceRef="Task_PrijmoutUrgent_Doprava" targetRef="Task_UpravitRozvrh" />
+    <sequenceFlow id="Flow_D3" sourceRef="Task_UpravitRozvrh" targetRef="Task_InformovatRidice" />
+    <sequenceFlow id="Flow_D4" sourceRef="Task_InformovatRidice" targetRef="End_Doprava" />
+  </process>
+
+  <!-- ============================================ -->
+  <!-- BPMN DIAGRAM                                 -->
+  <!-- ============================================ -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+
+      <!-- POOL 1: Iniciátor -->
+      <bpmndi:BPMNShape id="Shape_Pool_Iniciator" bpmnElement="Participant_Iniciator" isHorizontal="true">
+        <dc:Bounds x="160" y="60" width="900" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Zmena" bpmnElement="Start_Zmena">
+        <dc:Bounds x="230" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_NahlasitZmenu" bpmnElement="Task_NahlasitZmenu">
+        <dc:Bounds x="330" y="90" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Iniciator" bpmnElement="End_Iniciator">
+        <dc:Bounds x="580" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_1" bpmnElement="Flow_1">
+        <di:waypoint x="266" y="130" />
+        <di:waypoint x="330" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_2" bpmnElement="Flow_2">
+        <di:waypoint x="510" y="130" />
+        <di:waypoint x="580" y="130" />
+      </bpmndi:BPMNEdge>
+
+      <!-- POOL 2: Vedení -->
+      <bpmndi:BPMNShape id="Shape_Pool_Vedeni" bpmnElement="Participant_Vedeni" isHorizontal="true">
+        <dc:Bounds x="160" y="240" width="900" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PosouditZmenu" bpmnElement="Task_PosouditZmenu">
+        <dc:Bounds x="330" y="270" width="180" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Schvaleni" bpmnElement="GW_Schvaleni" isMarkerVisible="true">
+        <dc:Bounds x="565" y="285" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SchvalitZmenu" bpmnElement="Task_SchvalitZmenu">
+        <dc:Bounds x="680" y="250" width="180" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ZamitnutZmenu" bpmnElement="Task_ZamitnutZmenu">
+        <dc:Bounds x="680" y="350" width="180" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Vedeni_Schvaleno" bpmnElement="End_Vedeni_Schvaleno">
+        <dc:Bounds x="920" y="267" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Vedeni_Zamitnuto" bpmnElement="End_Vedeni_Zamitnuto">
+        <dc:Bounds x="920" y="357" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_V1" bpmnElement="Flow_V1">
+        <di:waypoint x="510" y="305" />
+        <di:waypoint x="565" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_V2" bpmnElement="Flow_V2">
+        <di:waypoint x="615" y="295" />
+        <di:waypoint x="680" y="285" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_V3" bpmnElement="Flow_V3">
+        <di:waypoint x="590" y="335" />
+        <di:waypoint x="680" y="375" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_V4" bpmnElement="Flow_V4">
+        <di:waypoint x="860" y="285" />
+        <di:waypoint x="920" y="285" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_V5" bpmnElement="Flow_V5">
+        <di:waypoint x="860" y="375" />
+        <di:waypoint x="920" y="375" />
+      </bpmndi:BPMNEdge>
+
+      <!-- POOL 3: Produkční -->
+      <bpmndi:BPMNShape id="Shape_Pool_Produkcni" bpmnElement="Participant_Produkcni" isHorizontal="true">
+        <dc:Bounds x="160" y="460" width="1200" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Produkcni" bpmnElement="Start_Produkcni">
+        <dc:Bounds x="230" y="542" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PrijmoutInfo_Produkcni" bpmnElement="Task_PrijmoutInfo_Produkcni">
+        <dc:Bounds x="300" y="520" width="160" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Zavaznost" bpmnElement="GW_Zavaznost" isMarkerVisible="true">
+        <dc:Bounds x="500" y="535" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_EskalovatVedeni" bpmnElement="Task_EskalovatVedeni">
+        <dc:Bounds x="590" y="480" width="160" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PrijmoutRozhodnuti" bpmnElement="Task_PrijmoutRozhodnuti">
+        <dc:Bounds x="590" y="560" width="160" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_RozhodnoutSam" bpmnElement="Task_RozhodnoutSam">
+        <dc:Bounds x="590" y="630" width="160" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_InformovatMilenu" bpmnElement="Task_InformovatMilenu">
+        <dc:Bounds x="810" y="530" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AktualizovatSoubor" bpmnElement="Task_AktualizovatSoubor">
+        <dc:Bounds x="1040" y="530" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Produkcni" bpmnElement="End_Produkcni">
+        <dc:Bounds x="1270" y="552" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_P1" bpmnElement="Flow_P1">
+        <di:waypoint x="266" y="560" />
+        <di:waypoint x="300" y="550" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_P2" bpmnElement="Flow_P2">
+        <di:waypoint x="460" y="550" />
+        <di:waypoint x="500" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_P3" bpmnElement="Flow_P3">
+        <di:waypoint x="525" y="535" />
+        <di:waypoint x="590" y="510" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_P4" bpmnElement="Flow_P4">
+        <di:waypoint x="550" y="560" />
+        <di:waypoint x="590" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_P5" bpmnElement="Flow_P5">
+        <di:waypoint x="670" y="540" />
+        <di:waypoint x="670" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_P6" bpmnElement="Flow_P6">
+        <di:waypoint x="750" y="590" />
+        <di:waypoint x="810" y="570" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_P7" bpmnElement="Flow_P7">
+        <di:waypoint x="750" y="660" />
+        <di:waypoint x="810" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_P8" bpmnElement="Flow_P8">
+        <di:waypoint x="990" y="570" />
+        <di:waypoint x="1040" y="570" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_P9" bpmnElement="Flow_P9">
+        <di:waypoint x="1220" y="570" />
+        <di:waypoint x="1270" y="570" />
+      </bpmndi:BPMNEdge>
+
+      <!-- POOL 4: Milena -->
+      <bpmndi:BPMNShape id="Shape_Pool_Milena" bpmnElement="Participant_Milena" isHorizontal="true">
+        <dc:Bounds x="160" y="700" width="1500" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Milena" bpmnElement="Start_Milena">
+        <dc:Bounds x="230" y="802" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PrijmoutPozadavek" bpmnElement="Task_PrijmoutPozadavek">
+        <dc:Bounds x="300" y="780" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Urgence" bpmnElement="GW_Urgence" isMarkerVisible="true">
+        <dc:Bounds x="520" y="795" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_UrgentniInfo" bpmnElement="Task_UrgentniInfo">
+        <dc:Bounds x="610" y="720" width="180" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ZapisXlsx" bpmnElement="Task_ZapisXlsx">
+        <dc:Bounds x="610" y="830" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PrepisFerman" bpmnElement="Task_PrepisFerman">
+        <dc:Bounds x="850" y="830" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AktualizovatMesicniPlan" bpmnElement="Task_AktualizovatMesicniPlan">
+        <dc:Bounds x="1080" y="830" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AktualizovatDopravu" bpmnElement="Task_AktualizovatDopravu">
+        <dc:Bounds x="1290" y="830" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AktualizovatNastenku" bpmnElement="Task_AktualizovatNastenku">
+        <dc:Bounds x="1290" y="720" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Milena" bpmnElement="End_Milena">
+        <dc:Bounds x="1530" y="742" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_M1" bpmnElement="Flow_M1">
+        <di:waypoint x="266" y="820" />
+        <di:waypoint x="300" y="820" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_M2" bpmnElement="Flow_M2">
+        <di:waypoint x="480" y="820" />
+        <di:waypoint x="520" y="820" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_M3" bpmnElement="Flow_M3">
+        <di:waypoint x="545" y="795" />
+        <di:waypoint x="610" y="755" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_M4" bpmnElement="Flow_M4">
+        <di:waypoint x="570" y="820" />
+        <di:waypoint x="610" y="860" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_M5" bpmnElement="Flow_M5">
+        <di:waypoint x="700" y="790" />
+        <di:waypoint x="700" y="830" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_M6" bpmnElement="Flow_M6">
+        <di:waypoint x="810" y="870" />
+        <di:waypoint x="850" y="870" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_M7" bpmnElement="Flow_M7">
+        <di:waypoint x="1050" y="870" />
+        <di:waypoint x="1080" y="870" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_M8" bpmnElement="Flow_M8">
+        <di:waypoint x="1260" y="870" />
+        <di:waypoint x="1290" y="870" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_M9" bpmnElement="Flow_M9">
+        <di:waypoint x="1380" y="830" />
+        <di:waypoint x="1380" y="800" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_M10" bpmnElement="Flow_M10">
+        <di:waypoint x="1470" y="760" />
+        <di:waypoint x="1530" y="760" />
+      </bpmndi:BPMNEdge>
+
+      <!-- POOL 5: UTP -->
+      <bpmndi:BPMNShape id="Shape_Pool_UTP" bpmnElement="Participant_UTP" isHorizontal="true">
+        <dc:Bounds x="160" y="990" width="1200" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_UTP" bpmnElement="Start_UTP">
+        <dc:Bounds x="230" y="1072" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PrijmoutUrgent_UTP" bpmnElement="Task_PrijmoutUrgent_UTP">
+        <dc:Bounds x="310" y="1050" width="180" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_InfoZdroj" bpmnElement="GW_InfoZdroj" isMarkerVisible="true">
+        <dc:Bounds x="540" y="1065" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_KontrolovatFerman" bpmnElement="Task_KontrolovatFerman">
+        <dc:Bounds x="640" y="1010" width="200" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PrecistNastenku" bpmnElement="Task_PrecistNastenku">
+        <dc:Bounds x="640" y="1100" width="200" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_UpravitPraci" bpmnElement="Task_UpravitPraci">
+        <dc:Bounds x="900" y="1050" width="180" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_UTP" bpmnElement="End_UTP">
+        <dc:Bounds x="1140" y="1067" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_U1" bpmnElement="Flow_U1">
+        <di:waypoint x="266" y="1090" />
+        <di:waypoint x="310" y="1085" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_U2" bpmnElement="Flow_U2">
+        <di:waypoint x="490" y="1085" />
+        <di:waypoint x="540" y="1090" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_U3" bpmnElement="Flow_U3">
+        <di:waypoint x="565" y="1065" />
+        <di:waypoint x="640" y="1045" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_U4" bpmnElement="Flow_U4">
+        <di:waypoint x="565" y="1115" />
+        <di:waypoint x="640" y="1135" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_U5" bpmnElement="Flow_U5">
+        <di:waypoint x="840" y="1045" />
+        <di:waypoint x="900" y="1070" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_U6" bpmnElement="Flow_U6">
+        <di:waypoint x="840" y="1135" />
+        <di:waypoint x="900" y="1100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_U7" bpmnElement="Flow_U7">
+        <di:waypoint x="1080" y="1085" />
+        <di:waypoint x="1140" y="1085" />
+      </bpmndi:BPMNEdge>
+
+      <!-- POOL 6: Doprava -->
+      <bpmndi:BPMNShape id="Shape_Pool_Doprava" bpmnElement="Participant_Doprava" isHorizontal="true">
+        <dc:Bounds x="160" y="1230" width="1200" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_Doprava" bpmnElement="Start_Doprava">
+        <dc:Bounds x="230" y="1292" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PrijmoutUrgent_Doprava" bpmnElement="Task_PrijmoutUrgent_Doprava">
+        <dc:Bounds x="330" y="1270" width="200" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_UpravitRozvrh" bpmnElement="Task_UpravitRozvrh">
+        <dc:Bounds x="590" y="1270" width="200" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_InformovatRidice" bpmnElement="Task_InformovatRidice">
+        <dc:Bounds x="850" y="1270" width="180" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Doprava" bpmnElement="End_Doprava">
+        <dc:Bounds x="1100" y="1287" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_D1" bpmnElement="Flow_D1">
+        <di:waypoint x="266" y="1310" />
+        <di:waypoint x="330" y="1305" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_D2" bpmnElement="Flow_D2">
+        <di:waypoint x="530" y="1305" />
+        <di:waypoint x="590" y="1305" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_D3" bpmnElement="Flow_D3">
+        <di:waypoint x="790" y="1305" />
+        <di:waypoint x="850" y="1305" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_D4" bpmnElement="Flow_D4">
+        <di:waypoint x="1030" y="1305" />
+        <di:waypoint x="1100" y="1305" />
+      </bpmndi:BPMNEdge>
+
+      <!-- MESSAGE FLOWS -->
+      <bpmndi:BPMNEdge id="Edge_MF_1" bpmnElement="MF_1">
+        <di:waypoint x="420" y="170" />
+        <di:waypoint x="380" y="520" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MF_2" bpmnElement="MF_2">
+        <di:waypoint x="670" y="480" />
+        <di:waypoint x="420" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MF_3" bpmnElement="MF_3">
+        <di:waypoint x="770" y="320" />
+        <di:waypoint x="670" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MF_4" bpmnElement="MF_4">
+        <di:waypoint x="900" y="610" />
+        <di:waypoint x="390" y="780" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MF_5" bpmnElement="MF_5">
+        <di:waypoint x="700" y="790" />
+        <di:waypoint x="400" y="1050" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MF_6" bpmnElement="MF_6">
+        <di:waypoint x="700" y="790" />
+        <di:waypoint x="430" y="1270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_MF_7" bpmnElement="MF_7">
+        <di:waypoint x="1380" y="910" />
+        <di:waypoint x="690" y="1270" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</definitions>
