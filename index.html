@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Změna představení — Jihočeské divadlo — BPMN</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  header { background: #fff; border-bottom: 2px solid #e0e0e0; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  header h1 { font-size: 16px; font-weight: 700; color: #1a1a2e; }
+  header .sub { font-size: 11px; color: #888; margin-top: 2px; }
+  .btns { display: flex; gap: 6px; align-items: center; }
+  .btns button { background: #f5f5f5; border: 1px solid #ddd; color: #333; height: 30px; padding: 0 12px; border-radius: 5px; cursor: pointer; font-size: 13px; }
+  .btns button:hover { background: #e8e8e8; }
+  .btns .zl { font-size: 12px; color: #888; min-width: 40px; text-align: center; }
+
+  .tab-row { display: flex; gap: 4px; }
+  .tab-row button { background: none; border: 1px solid transparent; color: #888; font-size: 12px; padding: 5px 12px; border-radius: 5px; cursor: pointer; }
+  .tab-row button:hover { color: #333; }
+  .tab-row button.on { background: #e8f0fe; color: #1a73e8; border-color: #c5d8f8; }
+
+  #viewport { flex: 1; overflow: hidden; cursor: grab; position: relative; background: #f0f2f5; }
+  #viewport:active { cursor: grabbing; }
+  #diagram { transform-origin: 0 0; position: absolute; top: 0; left: 0; }
+
+  .panel { position: absolute; right: 16px; top: 16px; width: 320px; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; z-index: 20; max-height: calc(100% - 32px); overflow-y: auto; display: none; box-shadow: 0 4px 20px rgba(0,0,0,.1); }
+  .panel.show { display: block; }
+  .panel h3 { font-size: 14px; margin-bottom: 10px; color: #b45309; }
+  .panel .item { padding: 8px 10px; border-radius: 5px; margin-bottom: 6px; font-size: 12px; line-height: 1.5; background: #fffbeb; border-left: 3px solid #f59e0b; color: #78350f; }
+  .panel .item b { font-size: 11px; color: #b45309; }
+  .panel .close { position: absolute; top: 10px; right: 12px; background: none; border: none; font-size: 18px; cursor: pointer; color: #999; }
+
+  footer { background: #fff; border-top: 1px solid #e0e0e0; padding: 6px 24px; font-size: 10px; color: #999; display: flex; justify-content: space-between; flex-shrink: 0; }
+
+  /* SVG styles */
+  .pool-bg { stroke-width: 1; }
+  .pool-label-bg { stroke-width: 1.5; }
+  .task-box { rx: 7; ry: 7; stroke-width: 1.5; }
+  .task-warn { stroke: #d97706; stroke-width: 2; fill: #fffbeb; }
+  .task-normal { stroke: #cbd5e1; fill: #fff; }
+  .task-label { font-size: 10.5px; font-weight: 600; font-family: -apple-system, sans-serif; fill: #1e293b; }
+  .task-sub { font-size: 8px; font-family: -apple-system, sans-serif; }
+  .task-sub-warn { fill: #b45309; }
+  .task-sub-normal { fill: #94a3b8; }
+  .warn-bar { fill: #f59e0b; }
+  .arrow { stroke: #94a3b8; stroke-width: 1.3; fill: none; marker-end: url(#ah); }
+  .arrow-label { font-size: 8px; fill: #64748b; font-family: -apple-system, sans-serif; }
+  .msg-arrow { stroke: #8b5cf6; stroke-width: 1; stroke-dasharray: 5,3; fill: none; marker-end: url(#ahm); opacity: 0.6; }
+  .msg-label { font-size: 8px; fill: #7c3aed; font-family: -apple-system, sans-serif; opacity: 0.7; }
+  .gw-diamond { fill: #fef3c7; stroke: #f59e0b; stroke-width: 1.5; }
+  .gw-text { font-size: 10px; font-weight: bold; fill: #92400e; font-family: sans-serif; }
+  .gw-label { font-size: 8px; fill: #64748b; font-family: -apple-system, sans-serif; }
+  .start-circle { fill: none; stroke-width: 2.5; }
+  .start-dot { }
+  .end-circle { fill: none; stroke: #dc2626; stroke-width: 3; }
+  .end-dot { fill: #dc2626; }
+  .pool-title { font-size: 11px; font-weight: 700; font-family: -apple-system, sans-serif; }
+  .pool-sub { font-size: 8px; font-family: -apple-system, sans-serif; opacity: 0.7; }
+  .ev-label { font-size: 7.5px; fill: #64748b; font-family: -apple-system, sans-serif; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Proces: Změna / zrušení představení</h1>
+    <div class="sub">Jihočeské divadlo · AS-IS stav · Digitální audit 2025/2026</div>
+  </div>
+  <div class="tab-row">
+    <button class="on" onclick="showDiagram()">Diagram</button>
+    <button id="btnP" onclick="togglePanel()">⚠ Problémy (8)</button>
+  </div>
+  <div class="btns">
+    <button onclick="zoomIn()">+</button>
+    <span class="zl" id="zl">80%</span>
+    <button onclick="zoomOut()">−</button>
+    <button onclick="resetView()">Reset</button>
+  </div>
+</header>
+
+<div id="viewport">
+  <div id="diagram">
+    <svg xmlns="http://www.w3.org/2000/svg" width="1560" height="1100" viewBox="0 0 1560 1100">
+      <defs>
+        <marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#94a3b8"/></marker>
+        <marker id="ahm" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#8b5cf6" opacity="0.6"/></marker>
+      </defs>
+
+      <!-- ═══ POOL: INICIÁTOR ═══ -->
+      <rect x="140" y="5" width="1400" height="115" rx="5" fill="#f0fdf4" stroke="#86efac" class="pool-bg"/>
+      <rect x="2" y="5" width="135" height="115" rx="5" fill="#dcfce7" stroke="#4ade80" class="pool-label-bg"/>
+      <text x="69" y="55" text-anchor="middle" class="pool-title" fill="#16a34a">Iniciátor změny</text>
+      <text x="69" y="70" text-anchor="middle" class="pool-sub" fill="#16a34a">(režisér, šéf souboru, produkční)</text>
+
+      <!-- Start -->
+      <circle cx="195" cy="60" r="14" class="start-circle" stroke="#16a34a"/><circle cx="195" cy="60" r="5" fill="#16a34a"/>
+      <text x="195" y="84" text-anchor="middle" class="ev-label">Potřeba změny</text>
+      <!-- T1 -->
+      <rect x="260" y="30" width="220" height="62" class="task-box task-warn"/>
+      <rect x="260" y="30" width="4" height="62" rx="2" class="warn-bar"/>
+      <text x="370" y="52" text-anchor="middle" class="task-label">Nahlásit potřebu změny</text>
+      <text x="370" y="80" text-anchor="middle" class="task-sub task-sub-warn">⚠️ telefon / mail / WA / osobně</text>
+      <!-- End -->
+      <line x1="480" y1="61" x2="545" y2="61" class="arrow"/>
+      <circle cx="570" cy="61" r="14" class="end-circle"/><circle cx="570" cy="61" r="6" class="end-dot"/>
+      <!-- Arrow start→t1 -->
+      <line x1="209" y1="60" x2="258" y2="60" class="arrow"/>
+
+      <!-- ═══ POOL: VEDENÍ ═══ -->
+      <rect x="140" y="130" width="1400" height="150" rx="5" fill="#eff6ff" stroke="#93c5fd" class="pool-bg"/>
+      <rect x="2" y="130" width="135" height="150" rx="5" fill="#dbeafe" stroke="#60a5fa" class="pool-label-bg"/>
+      <text x="69" y="200" text-anchor="middle" class="pool-title" fill="#2563eb">Vedení</text>
+      <text x="69" y="215" text-anchor="middle" class="pool-sub" fill="#2563eb">Porada vedení</text>
+
+      <!-- T2 -->
+      <rect x="260" y="170" width="195" height="55" class="task-box task-warn"/>
+      <rect x="260" y="170" width="4" height="55" rx="2" class="warn-bar"/>
+      <text x="357" y="193" text-anchor="middle" class="task-label">Posoudit závažnost</text>
+      <text x="357" y="215" text-anchor="middle" class="task-sub task-sub-warn">⚠️ Neformalizovaný proces</text>
+      <!-- GW1 -->
+      <polygon points="540,197 560,177 580,197 560,217" class="gw-diamond"/>
+      <text x="560" y="201" text-anchor="middle" class="gw-text">✕</text>
+      <text x="560" y="170" text-anchor="middle" class="gw-label">Schválit?</text>
+      <line x1="455" y1="197" x2="538" y2="197" class="arrow"/>
+      <!-- T3 -->
+      <rect x="630" y="152" width="210" height="55" class="task-box task-normal"/>
+      <text x="735" y="175" text-anchor="middle" class="task-label">Schválit změnu</text>
+      <text x="735" y="197" text-anchor="middle" class="task-sub task-sub-normal">Porada 1×/14 dní nebo ad hoc</text>
+      <line x1="580" y1="190" x2="628" y2="178" class="arrow"/>
+      <text x="600" y="178" class="arrow-label">Ano</text>
+      <!-- T4 -->
+      <rect x="630" y="225" width="130" height="40" class="task-box task-normal"/>
+      <text x="695" y="250" text-anchor="middle" class="task-label">Zamítnout</text>
+      <line x1="570" y1="217" x2="628" y2="240" class="arrow"/>
+      <text x="595" y="237" class="arrow-label">Ne</text>
+      <!-- Ends -->
+      <line x1="840" y1="179" x2="890" y2="179" class="arrow"/>
+      <circle cx="910" cy="179" r="14" class="end-circle"/><circle cx="910" cy="179" r="6" class="end-dot"/>
+      <line x1="760" y1="245" x2="800" y2="245" class="arrow"/>
+      <circle cx="820" cy="245" r="14" class="end-circle"/><circle cx="820" cy="245" r="6" class="end-dot"/>
+
+      <!-- ═══ POOL: PRODUKČNÍ ═══ -->
+      <rect x="140" y="295" width="1400" height="185" rx="5" fill="#fff7ed" stroke="#fdba74" class="pool-bg"/>
+      <rect x="2" y="295" width="135" height="185" rx="5" fill="#ffedd5" stroke="#fb923c" class="pool-label-bg"/>
+      <text x="69" y="378" text-anchor="middle" class="pool-title" fill="#ea580c">Produkční souborů</text>
+      <text x="69" y="393" text-anchor="middle" class="pool-sub" fill="#ea580c">(Činohra, Opera, Balet, MD)</text>
+
+      <!-- T5 -->
+      <rect x="175" y="350" width="175" height="50" class="task-box task-normal"/>
+      <text x="262" y="380" text-anchor="middle" class="task-label">Přijmout info o změně</text>
+      <!-- GW2 -->
+      <polygon points="420,375 440,355 460,375 440,395" class="gw-diamond"/>
+      <text x="440" y="379" text-anchor="middle" class="gw-text">✕</text>
+      <text x="440" y="348" text-anchor="middle" class="gw-label">Závažnost?</text>
+      <line x1="350" y1="375" x2="418" y2="375" class="arrow"/>
+      <!-- T6 -->
+      <rect x="510" y="320" width="185" height="50" class="task-box task-normal"/>
+      <text x="602" y="343" text-anchor="middle" class="task-label">Eskalovat na vedení</text>
+      <text x="602" y="360" text-anchor="middle" class="task-sub task-sub-normal">(kritická změna)</text>
+      <line x1="455" y1="362" x2="508" y2="345" class="arrow"/>
+      <text x="476" y="347" class="arrow-label">Kritická</text>
+      <!-- T7 -->
+      <rect x="510" y="400" width="185" height="50" class="task-box task-normal"/>
+      <text x="602" y="423" text-anchor="middle" class="task-label">Rozhodnout samostatně</text>
+      <text x="602" y="440" text-anchor="middle" class="task-sub task-sub-normal">(důležitá / běžná)</text>
+      <line x1="455" y1="390" x2="508" y2="418" class="arrow"/>
+      <text x="476" y="413" class="arrow-label">Běžná</text>
+      <!-- T8 -->
+      <rect x="755" y="345" width="185" height="55" class="task-box task-warn"/>
+      <rect x="755" y="345" width="4" height="55" rx="2" class="warn-bar"/>
+      <text x="847" y="368" text-anchor="middle" class="task-label">Informovat Milenu</text>
+      <text x="847" y="390" text-anchor="middle" class="task-sub task-sub-warn">⚠️ Nejednotný kanál</text>
+      <line x1="695" y1="345" x2="753" y2="365" class="arrow"/>
+      <line x1="695" y1="425" x2="753" y2="380" class="arrow"/>
+      <!-- T9 -->
+      <rect x="1000" y="345" width="200" height="55" class="task-box task-normal"/>
+      <text x="1100" y="368" text-anchor="middle" class="task-label">Aktualizovat tabulky souboru</text>
+      <text x="1100" y="390" text-anchor="middle" class="task-sub task-sub-normal">Google / Excel — záleží na souboru</text>
+      <line x1="940" y1="372" x2="998" y2="372" class="arrow"/>
+      <!-- End -->
+      <line x1="1200" y1="372" x2="1250" y2="372" class="arrow"/>
+      <circle cx="1270" cy="372" r="14" class="end-circle"/><circle cx="1270" cy="372" r="6" class="end-dot"/>
+
+      <!-- ═══ POOL: MILENA ═══ -->
+      <rect x="140" y="495" width="1400" height="230" rx="5" fill="#fdf2f8" stroke="#f9a8d4" class="pool-bg"/>
+      <rect x="2" y="495" width="135" height="230" rx="5" fill="#fce7f3" stroke="#f472b6" class="pool-label-bg"/>
+      <text x="69" y="600" text-anchor="middle" class="pool-title" fill="#db2777">Milena Chumlenová</text>
+      <text x="69" y="615" text-anchor="middle" class="pool-sub" fill="#db2777">(tajemnice, správce Fermana)</text>
+
+      <!-- T10 -->
+      <rect x="175" y="535" width="185" height="55" class="task-box task-warn"/>
+      <rect x="175" y="535" width="4" height="55" rx="2" class="warn-bar"/>
+      <text x="267" y="558" text-anchor="middle" class="task-label">Přijmout požadavek</text>
+      <text x="267" y="580" text-anchor="middle" class="task-sub task-sub-warn">⚠️ Z různých kanálů</text>
+      <!-- GW3 -->
+      <polygon points="430,562 450,542 470,562 450,582" class="gw-diamond"/>
+      <text x="450" y="566" text-anchor="middle" class="gw-text">✕</text>
+      <text x="450" y="535" text-anchor="middle" class="gw-label">Urgentní?</text>
+      <line x1="360" y1="562" x2="428" y2="562" class="arrow"/>
+      <!-- T11 -->
+      <rect x="525" y="515" width="190" height="50" class="task-box task-normal"/>
+      <text x="620" y="538" text-anchor="middle" class="task-label">Urgentní informování</text>
+      <text x="620" y="555" text-anchor="middle" class="task-sub task-sub-normal">WA / telefon / obvolání</text>
+      <line x1="465" y1="550" x2="523" y2="540" class="arrow"/>
+      <text x="488" y="540" class="arrow-label">Ano</text>
+      <!-- T12 -->
+      <rect x="525" y="595" width="205" height="55" class="task-box task-warn"/>
+      <rect x="525" y="595" width="4" height="55" rx="2" class="warn-bar"/>
+      <text x="627" y="618" text-anchor="middle" class="task-label">Zapsat do .xlsx Fermana</text>
+      <text x="627" y="640" text-anchor="middle" class="task-sub task-sub-warn">⚠️ Pouze Milena má právo zápisu</text>
+      <line x1="458" y1="578" x2="523" y2="615" class="arrow"/>
+      <text x="485" y="605" class="arrow-label">Ne</text>
+      <line x1="620" y1="565" x2="620" y2="593" class="arrow"/>
+      <!-- T13 -->
+      <rect x="785" y="595" width="200" height="55" class="task-box task-warn"/>
+      <rect x="785" y="595" width="4" height="55" rx="2" class="warn-bar"/>
+      <text x="885" y="618" text-anchor="middle" class="task-label">Ruční přepis do Fermana</text>
+      <text x="885" y="640" text-anchor="middle" class="task-sub task-sub-warn">⚠️ Žádné API, žádný import</text>
+      <line x1="730" y1="622" x2="783" y2="622" class="arrow"/>
+      <!-- T14 -->
+      <rect x="1030" y="535" width="180" height="55" class="task-box task-normal"/>
+      <text x="1120" y="558" text-anchor="middle" class="task-label">Aktualizovat měsíční plán</text>
+      <text x="1120" y="578" text-anchor="middle" class="task-sub task-sub-normal">Excel na OneDrive</text>
+      <line x1="985" y1="610" x2="1028" y2="570" class="arrow"/>
+      <!-- T15 -->
+      <rect x="1030" y="620" width="185" height="55" class="task-box task-normal"/>
+      <text x="1122" y="643" text-anchor="middle" class="task-label">Aktualizovat tab. dopravy</text>
+      <text x="1122" y="663" text-anchor="middle" class="task-sub task-sub-normal">Čtvrtek = Fermanka</text>
+      <line x1="985" y1="630" x2="1028" y2="645" class="arrow"/>
+      <!-- T16 -->
+      <rect x="1270" y="575" width="175" height="55" class="task-box task-normal"/>
+      <text x="1357" y="598" text-anchor="middle" class="task-label">Aktualizovat nástěnku</text>
+      <text x="1357" y="618" text-anchor="middle" class="task-sub task-sub-normal">Tisk Fermana → UTP</text>
+      <line x1="1210" y1="562" x2="1268" y2="595" class="arrow"/>
+      <line x1="1215" y1="647" x2="1268" y2="612" class="arrow"/>
+      <!-- End -->
+      <line x1="1445" y1="602" x2="1485" y2="602" class="arrow"/>
+      <circle cx="1505" cy="602" r="14" class="end-circle"/><circle cx="1505" cy="602" r="6" class="end-dot"/>
+      <text x="1505" y="628" text-anchor="middle" class="ev-label">⚠️ Žádné potvrzení</text>
+
+      <!-- ═══ POOL: UTP ═══ -->
+      <rect x="140" y="740" width="1400" height="155" rx="5" fill="#faf5ff" stroke="#c4b5fd" class="pool-bg"/>
+      <rect x="2" y="740" width="135" height="155" rx="5" fill="#f3e8ff" stroke="#a78bfa" class="pool-label-bg"/>
+      <text x="69" y="810" text-anchor="middle" class="pool-title" fill="#7c3aed">UTP / Technici</text>
+      <text x="69" y="825" text-anchor="middle" class="pool-sub" fill="#7c3aed">(Bajzeková, mistři)</text>
+
+      <!-- T17 -->
+      <rect x="250" y="785" width="185" height="50" class="task-box task-normal"/>
+      <text x="342" y="808" text-anchor="middle" class="task-label">Přijmout urgentní info</text>
+      <text x="342" y="826" text-anchor="middle" class="task-sub task-sub-normal">WA / telefon</text>
+      <!-- GW4 -->
+      <polygon points="510,810 530,790 550,810 530,830" class="gw-diamond"/>
+      <text x="530" y="814" text-anchor="middle" class="gw-text">✕</text>
+      <text x="530" y="783" text-anchor="middle" class="gw-label">Zdroj?</text>
+      <line x1="435" y1="810" x2="508" y2="810" class="arrow"/>
+      <!-- T18 -->
+      <rect x="610" y="765" width="190" height="50" class="task-box task-warn"/>
+      <rect x="610" y="765" width="4" height="50" rx="2" class="warn-bar"/>
+      <text x="705" y="788" text-anchor="middle" class="task-label">Zkontrolovat Ferman</text>
+      <text x="705" y="806" text-anchor="middle" class="task-sub task-sub-warn">⚠️ Žádné notifikace</text>
+      <line x1="545" y1="798" x2="608" y2="790" class="arrow"/>
+      <text x="572" y="789" class="arrow-label">Online</text>
+      <!-- T19 -->
+      <rect x="610" y="840" width="190" height="50" class="task-box task-warn"/>
+      <rect x="610" y="840" width="4" height="50" rx="2" class="warn-bar"/>
+      <text x="705" y="863" text-anchor="middle" class="task-label">Přečíst nástěnku</text>
+      <text x="705" y="880" text-anchor="middle" class="task-sub task-sub-warn">⚠️ Může být zastaralá</text>
+      <line x1="540" y1="825" x2="608" y2="858" class="arrow"/>
+      <text x="570" y="850" class="arrow-label">Offline</text>
+      <!-- T20 -->
+      <rect x="870" y="790" width="185" height="50" class="task-box task-normal"/>
+      <text x="962" y="813" text-anchor="middle" class="task-label">Upravit pracovní plán</text>
+      <text x="962" y="831" text-anchor="middle" class="task-sub task-sub-normal">⚠️ Žádné potvrzení zpět</text>
+      <line x1="800" y1="790" x2="868" y2="808" class="arrow"/>
+      <line x1="800" y1="865" x2="868" y2="822" class="arrow"/>
+      <!-- End -->
+      <line x1="1055" y1="815" x2="1100" y2="815" class="arrow"/>
+      <circle cx="1120" cy="815" r="14" class="end-circle"/><circle cx="1120" cy="815" r="6" class="end-dot"/>
+
+      <!-- ═══ POOL: DOPRAVA ═══ -->
+      <rect x="140" y="910" width="1400" height="120" rx="5" fill="#ecfeff" stroke="#67e8f9" class="pool-bg"/>
+      <rect x="2" y="910" width="135" height="120" rx="5" fill="#cffafe" stroke="#22d3ee" class="pool-label-bg"/>
+      <text x="69" y="968" text-anchor="middle" class="pool-title" fill="#0891b2">Doprava</text>
+      <text x="69" y="983" text-anchor="middle" class="pool-sub" fill="#0891b2">(Bajzeková)</text>
+
+      <!-- T21 -->
+      <rect x="250" y="945" width="200" height="50" class="task-box task-normal"/>
+      <text x="350" y="968" text-anchor="middle" class="task-label">Přijmout info o změně</text>
+      <text x="350" y="986" text-anchor="middle" class="task-sub task-sub-normal">Urgentní / Fermanka</text>
+      <!-- T22 -->
+      <rect x="520" y="945" width="205" height="50" class="task-box task-warn"/>
+      <rect x="520" y="945" width="4" height="50" rx="2" class="warn-bar"/>
+      <text x="622" y="968" text-anchor="middle" class="task-label">Upravit rozvrh dopravy</text>
+      <text x="622" y="986" text-anchor="middle" class="task-sub task-sub-warn">⚠️ Ruční úprava v Excelu</text>
+      <line x1="450" y1="970" x2="518" y2="970" class="arrow"/>
+      <!-- T23 -->
+      <rect x="795" y="945" width="185" height="50" class="task-box task-normal"/>
+      <text x="887" y="968" text-anchor="middle" class="task-label">Informovat řidiče</text>
+      <text x="887" y="986" text-anchor="middle" class="task-sub task-sub-normal">Telefonicky / osobně</text>
+      <line x1="725" y1="970" x2="793" y2="970" class="arrow"/>
+      <!-- End -->
+      <line x1="980" y1="970" x2="1025" y2="970" class="arrow"/>
+      <circle cx="1045" cy="970" r="14" class="end-circle"/><circle cx="1045" cy="970" r="6" class="end-dot"/>
+
+      <!-- ═══ MESSAGE FLOWS (between pools) ═══ -->
+      <line x1="370" y1="92" x2="262" y2="348" class="msg-arrow"/>
+      <text x="290" y="220" text-anchor="middle" class="msg-label">Nahlášení</text>
+
+      <line x1="602" y1="320" x2="357" y2="225" class="msg-arrow"/>
+      <text x="460" y="265" text-anchor="middle" class="msg-label">Eskalace</text>
+
+      <line x1="735" y1="207" x2="847" y2="345" class="msg-arrow"/>
+      <text x="810" y="270" text-anchor="middle" class="msg-label">Rozhodnutí</text>
+
+      <line x1="847" y1="400" x2="267" y2="535" class="msg-arrow"/>
+      <text x="520" y="460" text-anchor="middle" class="msg-label">Info Mileně</text>
+
+      <line x1="620" y1="565" x2="342" y2="785" class="msg-arrow"/>
+      <text x="455" y="680" text-anchor="middle" class="msg-label">Urgentní info</text>
+
+      <line x1="620" y1="565" x2="350" y2="945" class="msg-arrow"/>
+      <text x="440" y="780" text-anchor="middle" class="msg-label">Urgentní info</text>
+
+      <line x1="1122" y1="675" x2="622" y2="945" class="msg-arrow"/>
+      <text x="840" y="820" text-anchor="middle" class="msg-label">Aktualizace</text>
+
+      <!-- ═══ LEGEND ═══ -->
+      <rect x="20" y="1050" width="600" height="40" rx="5" fill="#fff" stroke="#e0e0e0" stroke-width="1"/>
+      <circle cx="40" cy="1070" r="7" fill="none" stroke="#16a34a" stroke-width="2"/><circle cx="40" cy="1070" r="3" fill="#16a34a"/>
+      <text x="54" y="1074" font-size="9" fill="#666" font-family="sans-serif">Start</text>
+      <circle cx="100" cy="1070" r="7" fill="none" stroke="#dc2626" stroke-width="2.5"/><circle cx="100" cy="1070" r="3.5" fill="#dc2626"/>
+      <text x="114" y="1074" font-size="9" fill="#666" font-family="sans-serif">Konec</text>
+      <polygon points="175,1063 183,1070 175,1077 167,1070" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+      <text x="190" y="1074" font-size="9" fill="#666" font-family="sans-serif">Rozhodování</text>
+      <rect x="270" y="1062" width="30" height="16" rx="3" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+      <rect x="270" y="1062" width="3" height="16" rx="1" fill="#f59e0b"/>
+      <text x="308" y="1074" font-size="9" fill="#666" font-family="sans-serif">⚠ Problémové místo</text>
+      <line x1="430" y1="1070" x2="465" y2="1070" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="5,3"/>
+      <text x="472" y="1074" font-size="9" fill="#666" font-family="sans-serif">Message flow (komunikace mezi aktéry)</text>
+    </svg>
+  </div>
+
+  <div class="panel" id="panel">
+    <button class="close" onclick="togglePanel()">✕</button>
+    <h3>⚠️ Identifikované problémy (8)</h3>
+    <div class="item"><b>P1</b> Nestrukturovaný vstup změny — telefon, mail, WA, osobně. Riziko ztráty a zpoždění informace.</div>
+    <div class="item"><b>P2</b> Single point of failure — zápis do Fermana může pouze Milena. Při nepřítomnosti se proces zastaví.</div>
+    <div class="item"><b>P3</b> Ruční přepis do 5+ nepropojených systémů — 5–10 h/týden, riziko nekonzistence dat.</div>
+    <div class="item"><b>P4</b> Chybí formalizovaná kategorizace závažnosti změn — vše se řeší stejně chaoticky.</div>
+    <div class="item"><b>P5</b> Ferman nemá notifikace — zaměstnanci musí sami aktivně kontrolovat webovou stránku.</div>
+    <div class="item"><b>P6</b> Chybí potvrzení přijetí informace — nikdo neví, kdo už o změně ví a kdo ne.</div>
+    <div class="item"><b>P7</b> UTP se dozvídá plán pouze na týden dopředu (ve čtvrtek pro příští týden).</div>
+    <div class="item"><b>P8</b> Opakované zkoušky se zadávají ručně pokaždé znovu — chybí funkce opakovaných událostí.</div>
+  </div>
+</div>
+
+<footer>
+  <span>Scroll = zoom · Drag = posun · ⚠️ = identifikovaný problém v procesu</span>
+  <span>Mgr. Kateřina Švidrnochová · katerina@svidrnochova.cz</span>
+</footer>
+
+<script>
+const diagram = document.getElementById('diagram');
+const viewport = document.getElementById('viewport');
+let scale = 0.8, px = 0, py = 0, dragging = false, sx, sy;
+
+function applyTransform() {
+  diagram.style.transform = `translate(${px}px,${py}px) scale(${scale})`;
+  document.getElementById('zl').textContent = Math.round(scale * 100) + '%';
+}
+
+viewport.addEventListener('wheel', e => {
+  e.preventDefault();
+  const d = e.deltaY > 0 ? -0.05 : 0.05;
+  scale = Math.min(2.5, Math.max(0.2, scale + d));
+  applyTransform();
+}, { passive: false });
+
+viewport.addEventListener('mousedown', e => {
+  if (e.button === 0) { dragging = true; sx = e.clientX - px; sy = e.clientY - py; }
+});
+viewport.addEventListener('mousemove', e => {
+  if (dragging) { px = e.clientX - sx; py = e.clientY - sy; applyTransform(); }
+});
+viewport.addEventListener('mouseup', () => dragging = false);
+viewport.addEventListener('mouseleave', () => dragging = false);
+
+function zoomIn() { scale = Math.min(2.5, scale + 0.1); applyTransform(); }
+function zoomOut() { scale = Math.max(0.2, scale - 0.1); applyTransform(); }
+function resetView() { scale = 0.8; px = 0; py = 0; applyTransform(); }
+
+function togglePanel() {
+  const p = document.getElementById('panel');
+  p.classList.toggle('show');
+  document.getElementById('btnP').classList.toggle('on', p.classList.contains('show'));
+}
+function showDiagram() {
+  document.getElementById('panel').classList.remove('show');
+  document.getElementById('btnP').classList.remove('on');
+}
+
+applyTransform();
+</script>
+</body>
+</html>
